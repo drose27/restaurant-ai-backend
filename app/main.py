@@ -119,6 +119,9 @@ def dashboard():
             <p><strong>Items:</strong> {order.items}</p>
             <p><strong>Notes:</strong> {order.notes}</p>
             <p><strong>Status:</strong> {order.status}</p>
+            <form method="post" action="/orders/{order.id}/ready">
+    <button type="submit">Mark Ready</button>
+</form>
             <p><strong>Total:</strong> ${order.total}</p>
         </div>
         """
