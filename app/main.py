@@ -43,7 +43,7 @@ class OrderDB(Base):
     subtotal = Column(Float)
     tax_rate = Column(Float)
     total = Column(Float)
-
+    status = Column(String, default="NEW")
 
 Base.metadata.create_all(bind=engine)
 
@@ -62,6 +62,7 @@ def create_order(order: Order):
         subtotal=order.subtotal,
         tax_rate=order.tax_rate,
         total=order.total
+        status="NEW"
     )
 
     db = SessionLocal()
