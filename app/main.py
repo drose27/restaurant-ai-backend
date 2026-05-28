@@ -118,6 +118,7 @@ def dashboard():
             <p><strong>Phone:</strong> {order.phone_number}</p>
             <p><strong>Items:</strong> {order.items}</p>
             <p><strong>Notes:</strong> {order.notes}</p>
+            <p><strong>Status:</strong> {order.status}</p>
             <p><strong>Total:</strong> ${order.total}</p>
         </div>
         """
