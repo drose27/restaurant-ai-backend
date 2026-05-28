@@ -129,3 +129,23 @@ def dashboard():
     """
 
     return html
+
+@app.post("/orders/{order_id}/ready")
+def mark_order_ready(order_id: int):
+    db = SessionLocal()
+    order = db.query(OrderDB).filter(OrderDB.id == order_id).first()
+
+    if not order:
+        db.close()
+        return {"error": "Order not found"}
+
+    order.status = "READY"
+    db.commit()
+    db.refresh(order)
+    db.close()
+
+    return {
+        "success": True,
+        "order_id": order_id,
+        "status": "READY"
+    }
