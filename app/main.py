@@ -73,3 +73,10 @@ def create_order(order: Order):
         "status": "order saved to PostgreSQL",
         "order_id": db_order.id
     }
+
+@app.get("/orders")
+def get_orders():
+    db = SessionLocal()
+    orders = db.query(OrderDB).order_by(OrderDB.id.desc()).all()
+    db.close()
+    return orders
