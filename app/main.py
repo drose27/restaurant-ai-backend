@@ -61,7 +61,7 @@ def create_order(order: Order):
         notes=order.notes,
         subtotal=order.subtotal,
         tax_rate=order.tax_rate,
-        total=order.total
+        total=order.total,
         status="NEW"
     )
 
