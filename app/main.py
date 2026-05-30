@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, RedirectResponse
+from twilio.rest import Client
+import os
 from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
-import os
 
 load_dotenv()
 
@@ -148,7 +149,16 @@ def mark_order_ready(order_id: int):
     order.status = "READY"
     db.commit()
     db.refresh(order)
-    db.close()
+
+    client = Client(
+    os.getenv("TWILIO_ACCOUNT_SID"),
+    os.getenv("TWILIO_AUTH_TOKEN")
+)
+    client.messages.create(
+    body=f"Hi {order.customer_name}, your order is ready for pickup.",
+    from_=os.getenv("TWILIO_PHONE_NUMBER"),
+    to=f"+1{order.phone_number}"
+)
 
     db.close()
 
