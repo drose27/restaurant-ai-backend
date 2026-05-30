@@ -63,7 +63,7 @@ def create_order(order: Order):
         subtotal=order.subtotal,
         tax_rate=order.tax_rate,
         total=order.total,
-        status="NEW"
+        status="NEEDS_CALLBACK" if "Callback request" in order.items else "NEW"
     )
 
     db = SessionLocal()
