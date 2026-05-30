@@ -122,8 +122,7 @@ localStorage.setItem("lastOrderId", newestOrder);
     </head>
     <body>
         <h1>New Restaurant Orders</h1>
-    """
-
+    <button onclick="document.getElementById('ding').play()">Test Sound</button> """
     for order in orders:
         html += f"""
         <div class="order">
