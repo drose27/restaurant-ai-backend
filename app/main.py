@@ -139,6 +139,7 @@ def dashboard():
 
 @app.post("/orders/{order_id}/ready")
 def mark_order_ready(order_id: int):
+
     db = SessionLocal()
     order = db.query(OrderDB).filter(OrderDB.id == order_id).first()
 
@@ -160,6 +161,23 @@ def mark_order_ready(order_id: int):
     to=f"+1{order.phone_number}"
 )
 
+    db.close()
+
+    return RedirectResponse(url="/dashboard", status_code=303)
+
+@app.post("/orders/{order_id}/preparing")
+def mark_order_preparing(order_id: int):
+    db = SessionLocal()
+
+    order = db.query(OrderDB).filter(OrderDB.id == order_id).first()
+
+    if not order:
+        db.close()
+        return {"error": "Order not found"}
+
+    order.status = "PREPARING"
+    db.commit()
+    db.refresh(order)
     db.close()
 
     return RedirectResponse(url="/dashboard", status_code=303)
