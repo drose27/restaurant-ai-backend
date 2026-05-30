@@ -115,7 +115,7 @@ def dashboard():
     for order in orders:
         html += f"""
         <div class="order">
-            <div class="new">NEW ORDER #{order.id}</div>
+            <div class="new">{"🚨 CALLBACK REQUEST" if order.status == "NEEDS_CALLBACK" else "NEW ORDER"} #{order.id}</div>
             <p><strong>Customer:</strong> {order.customer_name}</p>
             <p><strong>Phone:</strong> {order.phone_number}</p>
             <p><strong>Items:</strong> {order.items}</p>
@@ -125,7 +125,7 @@ def dashboard():
 <form method="post" action="/orders/{order.id}/ready">
     <button type="submit">Mark Ready</button>
 </form>
-''' if order.status != "READY" else ""}
+''' if order.status not in ["READY", "NEEDS_CALLBACK"] else ""}
             <p><strong>Total:</strong> ${order.total}</p>
         </div>
         """
