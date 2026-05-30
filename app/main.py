@@ -107,6 +107,18 @@ def dashboard():
             .new { color: green; font-weight: bold; }
         </style>
         <meta http-equiv="refresh" content="10">
+<audio id="ding" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+
+<script>
+const lastSeen = localStorage.getItem("lastOrderId");
+const newestOrder = "{orders[0].id if orders else 0}";
+
+if (lastSeen && newestOrder !== lastSeen) {
+    document.getElementById("ding").play();
+}
+
+localStorage.setItem("lastOrderId", newestOrder);
+</script>
     </head>
     <body>
         <h1>New Restaurant Orders</h1>
