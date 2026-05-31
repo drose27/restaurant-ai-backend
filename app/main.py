@@ -106,19 +106,27 @@ def dashboard():
             }
             .new { color: green; font-weight: bold; }
         </style>
-        <meta http-equiv="refresh" content="10">
 <audio id="ding" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
 const lastSeen = localStorage.getItem("lastOrderId");
-const newestOrder = "{orders[0].id if orders else 0}";
-
-if (lastSeen && newestOrder !== lastSeen) {
-    alert("🔔 New Order Received!");
-}
-}
+let newestOrder = "{orders[0].id if orders else 0}";
 
 localStorage.setItem("lastOrderId", newestOrder);
+
+setInterval(async () => {{
+    const response = await fetch("/orders");
+    const orders = await response.json();
+    const latestOrder = orders.length > 0 ? String(orders[0].id) : "0";
+    const savedOrder = localStorage.getItem("lastOrderId");
+
+    if (savedOrder && latestOrder !== savedOrder) {{
+        document.getElementById("ding").play().catch(() => {{}});
+        alert("🔔 New Order Received!");
+        localStorage.setItem("lastOrderId", latestOrder);
+        window.location.reload();
+    }}
+}}, 10000);
 </script>
     </head>
     <body>
