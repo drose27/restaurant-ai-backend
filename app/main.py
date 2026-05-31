@@ -114,7 +114,9 @@ const lastSeen = localStorage.getItem("lastOrderId");
 const newestOrder = "{orders[0].id if orders else 0}";
 
 if (lastSeen && newestOrder !== lastSeen) {
-    document.getElementById("ding").play();
+    document.getElementById("ding").play().catch(() => {});
+    alert("🔔 New Order Received!");
+}
 }
 
 localStorage.setItem("lastOrderId", newestOrder);
