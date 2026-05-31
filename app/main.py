@@ -90,48 +90,27 @@ def dashboard():
     orders = db.query(OrderDB).order_by(OrderDB.id.desc()).all()
     db.close()
 
-    html = """
+    html = f"""
     <html>
     <head>
-        <title>Restaurant Orders</title>
-        <style>
-            body { font-family: Arial; padding: 30px; background: #f7f7f7; }
-            h1 { color: #222; }
-            .order {
+    <title>Restaurant Orders</title>
+    <style>
+            body {{ font-family: Arial; padding: 30px; background: #f7f7f7; }}
+h1 {{ color: #222; }}
+.order {{
                 background: white;
                 padding: 20px;
                 margin-bottom: 15px;
                 border-radius: 10px;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            }
-            .new { color: green; font-weight: bold; }
+            }}
+.new {{ color: green; font-weight: bold; }}
         </style>
-<audio id="ding" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
-<script>
-const lastSeen = localStorage.getItem("lastOrderId");
-let newestOrder = "{orders[0].id if orders else 0}";
-
-localStorage.setItem("lastOrderId", newestOrder);
-
-setInterval(async () => {{
-    const response = await fetch("/orders");
-    const orders = await response.json();
-    const latestOrder = orders.length > 0 ? String(orders[0].id) : "0";
-    const savedOrder = localStorage.getItem("lastOrderId");
-
-    if (savedOrder && latestOrder !== savedOrder) {{
-        document.getElementById("ding").play().catch(() => {{}});
-        alert("🔔 New Order Received!");
-        localStorage.setItem("lastOrderId", latestOrder);
-        window.location.reload();
-    }}
-}}, 10000);
-</script>
-    </head>
-    <body>
-        <h1>New Restaurant Orders</h1>
-    <button onclick="document.getElementById('ding').play()">Test Sound</button> """
+</head>
+<body>
+    <h1>New Restaurant Orders</h1>
+"""
     for order in orders:
         html += f"""
         <div class="order">
