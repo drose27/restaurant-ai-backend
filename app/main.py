@@ -25,6 +25,11 @@ Base = declarative_base()
 
 app = FastAPI()
 
+def log_event(event_type, message):
+    with open("system_logs.txt", "a") as log_file:
+        log_file.write(
+            f"{datetime.now()} | {event_type} | {message}\n"
+        )
 
 class Order(BaseModel):
     customer_name: str
@@ -72,6 +77,13 @@ def create_order(order: Order):
     db.add(db_order)
     db.commit()
     db.refresh(db_order)
+
+    log_event(
+    "NEW_ORDER",
+    f"{order.customer_name} - ${order.total}"
+)
+    
+    db.close()
 
     return {
         "status": "order saved to PostgreSQL",
