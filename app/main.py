@@ -107,6 +107,19 @@ h1 {{ color: #222; }}
 .new {{ color: green; font-weight: bold; }}
         </style>
 <meta http-equiv="refresh" content="10">
+<audio id="ding" preload="auto" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+
+<script>
+const newestOrder = "{orders[0].id if orders else 0}";
+const lastSeen = localStorage.getItem("lastOrderId");
+
+if (!lastSeen) {{
+    localStorage.setItem("lastOrderId", newestOrder);
+}} else if (newestOrder !== lastSeen) {{
+    localStorage.setItem("lastOrderId", newestOrder);
+    document.getElementById("ding").play().catch(() => {{}});
+}}
+</script>
 </head>
 <body>
     <h1>New Restaurant Orders</h1>
