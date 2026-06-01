@@ -106,7 +106,7 @@ h1 {{ color: #222; }}
             }}
 .new {{ color: green; font-weight: bold; }}
         </style>
-
+<meta http-equiv="refresh" content="10">
 </head>
 <body>
     <h1>New Restaurant Orders</h1>
