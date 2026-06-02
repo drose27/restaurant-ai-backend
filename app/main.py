@@ -191,16 +191,10 @@ def mark_order_ready(order_id: int):
     db.commit()
     db.refresh(order)
 
-    client = Client(
-    os.getenv("TWILIO_ACCOUNT_SID"),
-    os.getenv("TWILIO_AUTH_TOKEN")
+    log_event(
+    "ORDER_READY",
+    f"Order #{order.id} marked ready"
 )
-    client.messages.create(
-    body=f"Hi {order.customer_name}, your order is ready for pickup.",
-    from_=os.getenv("TWILIO_PHONE_NUMBER"),
-    to=f"+1{order.phone_number}"
-)
-
     db.close()
 
     return RedirectResponse(url="/dashboard", status_code=303)
