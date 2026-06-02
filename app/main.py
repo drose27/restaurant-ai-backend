@@ -46,6 +46,7 @@ class Order(BaseModel):
     subtotal: float
     tax_rate: float
     total: float
+
 class OrderDB(Base):
     __tablename__ = "orders"
 
@@ -58,6 +59,7 @@ class OrderDB(Base):
     tax_rate = Column(Float)
     total = Column(Float)
     status = Column(String, default="NEW")
+    created_at = Column(String)
 
 class LogDB(Base):
     __tablename__ = "logs"
@@ -84,7 +86,8 @@ def create_order(order: Order):
         subtotal=order.subtotal,
         tax_rate=order.tax_rate,
         total=order.total,
-        status="NEEDS_CALLBACK" if "Callback request" in order.items else "NEW"
+        status="NEEDS_CALLBACK" if "Callback request" in order.items else "NEW",
+        created_at=str(datetime.now())
     )
 
     db = SessionLocal()
