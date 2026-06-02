@@ -164,7 +164,22 @@ def get_logs():
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard():
     db = SessionLocal()
+
     orders = db.query(OrderDB).order_by(OrderDB.id.desc()).all()
+
+    today = str(datetime.now().date())
+
+    orders_today = [
+    order for order in orders
+    if order.created_at and order.created_at.startswith(today)
+]
+
+    orders_today_count = len(orders_today)
+    revenue_today = sum(order.total or 0 for order in orders_today)
+    waiting_orders = len([order for order in orders if order.status == "NEW"])
+    ready_orders = len([order for order in orders if order.status == "READY"])
+    callback_orders = len([order for order in orders if order.status == "NEEDS_CALLBACK"])
+
     db.close()
 
     html = f"""
