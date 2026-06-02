@@ -112,6 +112,13 @@ def get_orders():
     db.close()
     return orders
 
+@app.get("/logs")
+def get_logs():
+    db = SessionLocal()
+    logs = db.query(LogDB).order_by(LogDB.id.desc()).all()
+    db.close()
+    return logs
+
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard():
     db = SessionLocal()
