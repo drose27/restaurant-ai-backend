@@ -26,10 +26,17 @@ Base = declarative_base()
 app = FastAPI()
 
 def log_event(event_type, message):
-    with open("system_logs.txt", "a") as log_file:
-        log_file.write(
-            f"{datetime.now()} | {event_type} | {message}\n"
-        )
+    db = SessionLocal()
+
+    log = LogDB(
+        event_type=event_type,
+        message=message,
+        created_at=str(datetime.now())
+    )
+
+    db.add(log)
+    db.commit()
+    db.close()
 
 class Order(BaseModel):
     customer_name: str
@@ -51,6 +58,14 @@ class OrderDB(Base):
     tax_rate = Column(Float)
     total = Column(Float)
     status = Column(String, default="NEW")
+
+class LogDB(Base):
+    __tablename__ = "logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_type = Column(String)
+    message = Column(String)
+    created_at = Column(String)
 
 Base.metadata.create_all(bind=engine)
 
