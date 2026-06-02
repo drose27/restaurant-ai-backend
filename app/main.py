@@ -112,12 +112,51 @@ def get_orders():
     db.close()
     return orders
 
-@app.get("/logs")
+@app.get("/logs", response_class=HTMLResponse)
 def get_logs():
     db = SessionLocal()
     logs = db.query(LogDB).order_by(LogDB.id.desc()).all()
     db.close()
-    return logs
+
+    html = """
+    <html>
+    <head>
+        <title>System Logs</title>
+        <style>
+            body { font-family: Arial; padding: 30px; background: #f7f7f7; }
+            h1 { color: #222; }
+            table { width: 100%; border-collapse: collapse; background: white; }
+            th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+            th { background: #333; color: white; }
+            .event { font-weight: bold; color: green; }
+        </style>
+    </head>
+    <body>
+        <h1>System Logs</h1>
+        <table>
+            <tr>
+                <th>Time</th>
+                <th>Event</th>
+                <th>Message</th>
+            </tr>
+    """
+
+    for log in logs:
+        html += f"""
+            <tr>
+                <td>{log.created_at}</td>
+                <td class="event">{log.event_type}</td>
+                <td>{log.message}</td>
+            </tr>
+        """
+
+    html += """
+        </table>
+    </body>
+    </html>
+    """
+
+    return html
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard():
