@@ -171,7 +171,7 @@ def dashboard():
 
     orders_today = [
     order for order in orders
-    if order.created_at and order.created_at.startswith(today)
+    if getattr(order, "created_at", None) and str(order.created_at).startswith(today)
 ]
 
     orders_today_count = len(orders_today)
