@@ -230,7 +230,7 @@ if (!lastSeen) {{
             <div class="new">{"🚨 CALLBACK REQUEST" if order.status == "NEEDS_CALLBACK" else "NEW ORDER"} #{order.id}</div>
             <p><strong>Customer:</strong> {order.customer_name}</p>
             <p><strong>Phone:</strong> {order.phone_number}</p>
-            <p><strong>Created:</strong> {order.created_at}</p>
+            <p><strong>Created:</strong> {order.created_at[11:16]}</p>
             <p><strong>Items:</strong> {order.items}</p>
             <p><strong>Notes:</strong> {order.notes}</p>
             <p><strong>Status:</strong> {order.status}</p>
