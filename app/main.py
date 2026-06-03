@@ -215,13 +215,22 @@ if (!lastSeen) {{
 </head>
 <body>
     <h1>New Restaurant Orders</h1>
-"""
+<div class="order">
+    <h2>Today's Summary</h2>
+    <p><strong>Orders Today:</strong> {orders_today_count}</p>
+    <p><strong>Revenue Today:</strong> ${revenue_today:.2f}</p>
+    <p><strong>Waiting Orders:</strong> {waiting_orders}</p>
+    <p><strong>Ready Orders:</strong> {ready_orders}</p>
+    <p><strong>Callback Requests:</strong> {callback_orders}</p>
+</div>"""
+    
     for order in orders:
         html += f"""
         <div class="order">
             <div class="new">{"🚨 CALLBACK REQUEST" if order.status == "NEEDS_CALLBACK" else "NEW ORDER"} #{order.id}</div>
             <p><strong>Customer:</strong> {order.customer_name}</p>
             <p><strong>Phone:</strong> {order.phone_number}</p>
+            <p><strong>Created:</strong> {order.created_at}</p>
             <p><strong>Items:</strong> {order.items}</p>
             <p><strong>Notes:</strong> {order.notes}</p>
             <p><strong>Status:</strong> {order.status}</p>
