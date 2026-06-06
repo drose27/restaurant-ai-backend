@@ -180,6 +180,7 @@ def dashboard():
     revenue_today = sum(order.total or 0 for order in orders_today)
 
     waiting_orders = len([order for order in orders_today if order.status == "NEW"])
+    preparing_orders = len([order for order in orders_today if order.status == "PREPARING"])
     ready_orders = len([order for order in orders_today if order.status == "READY"])
     callback_orders = len([order for order in orders_today if order.status == "NEEDS_CALLBACK"])
 
@@ -221,6 +222,7 @@ if (!lastSeen) {{
     <p><strong>Orders Today:</strong> {orders_today_count}</p>
     <p><strong>Revenue Today:</strong> ${revenue_today:.2f}</p>
     <p><strong>Waiting Orders:</strong> {waiting_orders}</p>
+    <p><strong>Preparing Orders:</strong> {preparing_orders}</p>
     <p><strong>Ready Orders:</strong> {ready_orders}</p>
     <p><strong>Callback Requests:</strong> {callback_orders}</p>
 </div>"""
@@ -236,6 +238,9 @@ if (!lastSeen) {{
             <p><strong>Notes:</strong> {order.notes}</p>
             <p><strong>Status:</strong> {order.status}</p>
             {f'''
+   <form method="post" action="/orders/{order.id}/preparing">
+    <button type="submit">Start Preparing</button>
+</form>          
 <form method="post" action="/orders/{order.id}/ready">
     <button type="submit">Mark Ready</button>
 </form>
@@ -251,9 +256,32 @@ if (!lastSeen) {{
 
     return html
 
+@app.post("/orders/{order_id}/preparing")
+def mark_order_preparing(order_id: int):
+
+    db = SessionLocal()
+    order = db.query(OrderDB).filter(OrderDB.id == order_id).first()
+
+    if not order:
+        db.close()
+        return {"error": "Order not found"}
+
+    order.status = "PREPARING"
+    db.commit()
+    db.refresh(order)
+
+    log_event(
+        "ORDER_PREPARING",
+        f"Order #{order.id} started preparing"
+    )
+
+    db.close()
+
+    return RedirectResponse(url="/dashboard", status_code=303)
+
 @app.post("/orders/{order_id}/ready")
 def mark_order_ready(order_id: int):
-
+    
     db = SessionLocal()
     order = db.query(OrderDB).filter(OrderDB.id == order_id).first()
 
