@@ -238,13 +238,14 @@ if (!lastSeen) {{
             <p><strong>Notes:</strong> {order.notes}</p>
             <p><strong>Status:</strong> {order.status}</p>
             {f'''
-   <form method="post" action="/orders/{order.id}/preparing">
+<form method="post" action="/orders/{order.id}/preparing">
     <button type="submit">Start Preparing</button>
-</form>          
+''' if order.status == "NEW" else ""}      
+{f'''
 <form method="post" action="/orders/{order.id}/ready">
     <button type="submit">Mark Ready</button>
-</form>
-''' if order.status not in ["READY", "NEEDS_CALLBACK"] else ""}
+''' if order.status == "PREPARING" else ""}
+''' if order.status not in ["READY", "NEEDS_CALLBACK"] else ""
             <p><strong>Total:</strong> ${order.total}</p>
         </div>
         """
@@ -297,23 +298,6 @@ def mark_order_ready(order_id: int):
     "ORDER_READY",
     f"Order #{order.id} marked ready"
 )
-    db.close()
-
-    return RedirectResponse(url="/dashboard", status_code=303)
-
-@app.post("/orders/{order_id}/preparing")
-def mark_order_preparing(order_id: int):
-    db = SessionLocal()
-
-    order = db.query(OrderDB).filter(OrderDB.id == order_id).first()
-
-    if not order:
-        db.close()
-        return {"error": "Order not found"}
-
-    order.status = "PREPARING"
-    db.commit()
-    db.refresh(order)
     db.close()
 
     return RedirectResponse(url="/dashboard", status_code=303)
