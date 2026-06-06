@@ -166,6 +166,7 @@ def dashboard():
     db = SessionLocal()
 
     orders = db.query(OrderDB).order_by(OrderDB.id.desc()).all()
+    print("Created:", orders[0].created_at if orders else "No orders")
 
     cutoff = datetime.now() - timedelta(hours=24)
 
