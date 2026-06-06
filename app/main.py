@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, Column, Integer, String, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta
 
 load_dotenv()
 
@@ -167,20 +167,20 @@ def dashboard():
 
     orders = db.query(OrderDB).order_by(OrderDB.id.desc()).all()
 
-    today = str(datetime.now().date())
+    cutoff = datetime.now() - timedelta(hours=24)
 
     orders_today = [
-    order for order in orders
-    if getattr(order, "created_at", None) and str(order.created_at).startswith(today)
-]
+        order for order in orders
+        if getattr(order, "created_at", None)
+        and datetime.fromisoformat(str(order.created_at)) >= cutoff
+    ]
 
     orders_today_count = len(orders_today)
     revenue_today = sum(order.total or 0 for order in orders_today)
-    waiting_orders = len([order for order in orders if order.status == "NEW"])
-    ready_orders = len([order for order in orders if order.status == "READY"])
-    callback_orders = len([order for order in orders if order.status == "NEEDS_CALLBACK"])
 
-    db.close()
+    waiting_orders = len([order for order in orders_today if order.status == "NEW"])
+    ready_orders = len([order for order in orders_today if order.status == "READY"])
+    callback_orders = len([order for order in orders_today if order.status == "NEEDS_CALLBACK"])
 
     html = f"""
     <html>
