@@ -240,13 +240,15 @@ if (!lastSeen) {{
             {f'''
 <form method="post" action="/orders/{order.id}/preparing">
     <button type="submit">Start Preparing</button>
+</form>
 ''' if order.status == "NEW" else ""}      
 {f'''
 <form method="post" action="/orders/{order.id}/ready">
     <button type="submit">Mark Ready</button>
+</form>
 ''' if order.status == "PREPARING" else ""}
-''' if order.status not in ["READY", "NEEDS_CALLBACK"] else ""
-            <p><strong>Total:</strong> ${order.total}</p>
+
+<p><strong>Total:</strong> ${order.total}</p>
         </div>
         """
 
