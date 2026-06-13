@@ -61,6 +61,28 @@ class OrderDB(Base):
     status = Column(String, default="NEW")
     created_at = Column(String)
 
+class RestaurantSettings(Base):
+    __tablename__ = "restaurant_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    restaurant_name = Column(String)
+    phone_number = Column(String)
+    address = Column(String)
+
+    tax_rate = Column(Float, default=0.0)
+
+    pickup_message = Column(
+        String,
+        default="Your order is ready for pickup!"
+    )
+class RestaurantSettingsForm(BaseModel):
+    restaurant_name: str
+    phone_number: str
+    address: str
+    tax_rate: float
+    pickup_message: str
+
 class LogDB(Base):
     __tablename__ = "logs"
 
@@ -155,6 +177,68 @@ def get_logs():
 
     html += """
         </table>
+    </body>
+    </html>
+    """
+
+    return html
+@app.get("/settings", response_class=HTMLResponse)
+def settings_page():
+    db = SessionLocal()
+
+    settings = db.query(RestaurantSettings).first()
+
+    if not settings:
+        settings = RestaurantSettings(
+            restaurant_name="Diana's Mexican Grill",
+            phone_number="",
+            address="",
+            tax_rate=0.0,
+            pickup_message="Your order is ready for pickup!"
+        )
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+
+    db.close()
+
+    html = f"""
+    <html>
+    <head>
+        <title>Restaurant Settings</title>
+        <style>
+            body {{ font-family: Arial; padding: 30px; background: #f7f7f7; }}
+            .box {{ background: white; padding: 25px; border-radius: 12px; max-width: 600px; }}
+            input, textarea {{ width: 100%; padding: 10px; margin: 8px 0 18px 0; font-size: 16px; }}
+            button {{ padding: 12px 20px; font-size: 16px; cursor: pointer; }}
+            a {{ display: inline-block; margin-bottom: 20px; }}
+        </style>
+    </head>
+    <body>
+        <a href="/dashboard">← Back to Dashboard</a>
+
+        <div class="box">
+            <h1>Restaurant Settings</h1>
+
+            <form method="post" action="/settings">
+                <label>Restaurant Name</label>
+                <input name="restaurant_name" value="{settings.restaurant_name}">
+
+                <label>Phone Number</label>
+                <input name="phone_number" value="{settings.phone_number}">
+
+                <label>Address</label>
+                <input name="address" value="{settings.address}">
+
+                <label>Tax Rate</label>
+                <input name="tax_rate" value="{settings.tax_rate}">
+
+                <label>Pickup Message</label>
+                <textarea name="pickup_message">{settings.pickup_message}</textarea>
+
+                <button type="submit">Save Settings</button>
+            </form>
+        </div>
     </body>
     </html>
     """
