@@ -574,17 +574,6 @@ def menu_page():
     {files_html}
 </ul>
 
-</div>
-
-<br>
-
-<div style="background:white;padding:25px;border-radius:12px;border:1px solid #ddd;max-width:600px;">
-    <h2>Uploaded Menus</h2>
-    <ul>
-        {files_html}
-    </ul>
-</div>
-
 </body>
 </html>
 """
