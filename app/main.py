@@ -1,4 +1,7 @@
-from fastapi import FastAPI
+from importlib.resources import files
+from aiohttp_retry import List
+from fastapi import FastAPI, Form, File, UploadFile
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse
 from twilio.rest import Client
 import os
@@ -24,6 +27,8 @@ SessionLocal = sessionmaker(
 Base = declarative_base()
 
 app = FastAPI()
+
+app.mount("/uploaded_menus", StaticFiles(directory="uploaded_menus"), name="uploaded_menus")
 
 def log_event(event_type, message):
     db = SessionLocal()
@@ -130,7 +135,7 @@ def create_order(order: Order):
         "order_id": db_order.id
     }
 
-@app.get("/orders")
+@app.get("/api/orders")
 def get_orders():
     db = SessionLocal()
     orders = db.query(OrderDB).order_by(OrderDB.id.desc()).all()
@@ -180,8 +185,39 @@ def get_logs():
     </body>
     </html>
     """
-
     return html
+
+@app.post("/settings")
+def save_settings(
+    restaurant_name: str = Form(...),
+    phone_number: str = Form(...),
+    address: str = Form(...),
+    tax_rate: float = Form(...),
+    pickup_message: str = Form(...)
+):
+    db = SessionLocal()
+
+    settings = db.query(RestaurantSettings).first()
+
+    if not settings:
+        settings = RestaurantSettings()
+
+    settings.restaurant_name = restaurant_name
+    settings.phone_number = phone_number
+    settings.address = address
+    settings.tax_rate = tax_rate
+    settings.pickup_message = pickup_message
+
+    db.add(settings)
+    db.commit()
+
+    db.close()
+
+    return RedirectResponse(
+        url="/settings",
+        status_code=303
+    )
+
 @app.get("/settings", response_class=HTMLResponse)
 def settings_page():
     db = SessionLocal()
@@ -249,12 +285,18 @@ def settings_page():
 def dashboard():
     db = SessionLocal()
 
+    settings = db.query(RestaurantSettings).first()
+
+    restaurant_name = "Restaurant Orders"
+    if settings and settings.restaurant_name:
+        restaurant_name = settings.restaurant_name
+
     orders = db.query(OrderDB).order_by(OrderDB.id.desc()).all()
 
     cutoff = datetime.now() - timedelta(hours=24)
 
     orders_today = [
-        order for order in orders
+        order for order in orders [ :5]
         if getattr(order, "created_at", None)
         and datetime.fromisoformat(str(order.created_at)) >= cutoff
     ]
@@ -283,7 +325,7 @@ h1 {{ color: #222; }}
             }}
 .new {{ color: green; font-weight: bold; }}
         </style>
-<meta http-equiv="refresh" content="10">
+<meta http-equiv="refresh" content="5">
 <audio id="ding" preload="auto" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
@@ -299,7 +341,30 @@ if (!lastSeen) {{
 </script>
 </head>
 <body>
-    <h1>New Restaurant Orders</h1>
+    <h1>{restaurant_name}</h1>
+<div style="
+    background:#1f2937;
+    padding:15px;
+    border-radius:10px;
+    margin-bottom:20px;
+">
+    <a href="/dashboard" style="color:white;text-decoration:none;margin-right:20px;">
+        🏠 Dashboard
+    </a>
+
+    <a href="/orders" style="color:white;text-decoration:none;margin-right:20px;">
+        📦 Orders
+    </a>
+
+    <a href="/menu" style="color:white;text-decoration:none;margin-right:20px;">
+        📋 Menu
+    </a>
+
+    <a href="/settings" style="color:white;text-decoration:none;">
+        ⚙️ Settings
+    </a>
+</div>
+
 <div class="order">
     <h2>Today's Summary</h2>
     <p><strong>Orders Today:</strong> {orders_today_count}</p>
@@ -310,30 +375,17 @@ if (!lastSeen) {{
     <p><strong>Callback Requests:</strong> {callback_orders}</p>
 </div>"""
     
-    for order in orders:
+    html += """
+<h3>Recent Orders</h3>
+"""
+    for order in orders[:5]:
         html += f"""
-        <div class="order">
-            <div class="new">{"🚨 CALLBACK REQUEST" if order.status == "NEEDS_CALLBACK" else "NEW ORDER"} #{order.id}</div>
-            <p><strong>Customer:</strong> {order.customer_name}</p>
-            <p><strong>Phone:</strong> {order.phone_number}</p>
-            <p><strong>Created:</strong> {order.created_at[11:16] if order.created_at else "No time"}</p>
-            <p><strong>Items:</strong> {order.items}</p>
-            <p><strong>Notes:</strong> {order.notes}</p>
-            <p><strong>Status:</strong> {order.status}</p>
-            {f'''
-<form method="post" action="/orders/{order.id}/preparing">
-    <button type="submit">Start Preparing</button>
-</form>
-''' if order.status == "NEW" else ""}      
-{f'''
-<form method="post" action="/orders/{order.id}/ready">
-    <button type="submit">Mark Ready</button>
-</form>
-''' if order.status == "PREPARING" else ""}
-
-<p><strong>Total:</strong> ${order.total}</p>
-        </div>
-        """
+    <p>
+        #{order.id}
+        {"🚨 CALLBACK REQUEST" if order.status == "NEEDS_CALLBACK" else ""}
+        — {order.status}
+    </p>
+    """
 
     html += """
     </body>
@@ -341,6 +393,202 @@ if (!lastSeen) {{
     """
 
     db.close()
+    return html
+
+@app.get("/orders", response_class=HTMLResponse)
+def orders_page():
+    db = SessionLocal()
+    orders = db.query(OrderDB).order_by(OrderDB.id.desc()).all()
+
+    html = """
+    <html>
+    <head>
+
+    <audio id="ding" preload="auto" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+
+<script>
+const newestOrder = "{orders[0].id if orders else 0}";
+const lastSeen = localStorage.getItem("lastOrderId_orders");
+
+if (lastSeen && newestOrder !== lastSeen) {
+    localStorage.setItem("lastOrderId_orders", newestOrder);
+
+    const ding = document.getElementById("ding");
+    ding.volume = 0.4;
+    ding.currentTime = 0;
+    ding.play().finally(() => {
+        setTimeout(() => location.reload(), 1000);
+    });
+} else {
+    localStorage.setItem("lastOrderId_orders", newestOrder);
+    setTimeout(() => location.reload(), 5000);
+}
+</script>
+
+<style>
+    body { font-family: Arial; padding:30px; background:#f7f7f7; }
+.orders-grid { 
+      display:grid; 
+      grid-template-columns:repeat(4, 1fr); 
+      gap:15px; 
+}
+.order-card { 
+      background:white; 
+      padding:18px; 
+      border-radius:12px; 
+      border:1px solid #ddd; 
+      min-height:320px;
+      }
+
+button { margin:4px; 
+      padding:8px 12px; 
+      cursor:pointer; }
+</style>
+</head>
+<body>
+
+    <h1>📦 Orders</h1>
+    <a href="/dashboard">← Back to Dashboard</a>
+    <br><br>
+    """
+    html += '<div class="orders-grid">'
+
+    for order in orders:
+         html += f"""
+    <div class="order-card">
+
+        <h3>Order #{order.id}</h2>
+
+        <p>
+            <strong>{order.customer_name}</strong><br>
+            {order.phone_number}
+        </p>
+
+        <p>
+            <strong>Items:</strong><br>
+            {str(order.items).replace(',', '<br>')}
+        </p>
+
+        <p>
+            <strong>Notes:</strong><br>
+            {order.notes or 'None'}
+        </p>
+
+        {"<div style='color:red;font-weight:bold;'>🚨 CALLBACK REQUEST</div>" if order.status == "NEEDS_CALLBACK" else ""}
+
+        <p><strong>Status:</strong> {order.status}</p>
+
+        {f'''
+<form method="post" action="/orders/{order.id}/preparing" style="display:inline;">
+    <button type="submit">Preparing</button>
+</form>
+
+<form method="post" action="/orders/{order.id}/cancel" style="display:inline;">
+    <button type="submit">Cancel</button>
+</form>
+''' if order.status == "NEW" else ""}
+
+{f'''
+<form method="post" action="/orders/{order.id}/ready" style="display:inline;">
+    <button type="submit">Ready</button>
+</form>
+
+<form method="post" action="/orders/{order.id}/cancel" style="display:inline;">
+    <button type="submit">Cancel</button>
+</form>
+''' if order.status == "PREPARING" else ""}
+
+{f'''
+<p style="font-weight:bold;color:green;">✅ Ready</p>
+''' if order.status == "READY" else ""}
+
+{f'''
+<p style="font-weight:bold;color:red;">❌ Cancelled</p>
+''' if order.status == "CANCELLED" else ""}
+
+    </div>
+    """
+    html += '</div>'
+
+    html += """
+    </body>
+    </html>
+    """
+
+    db.close()
+    return html
+
+from typing import List
+
+@app.post("/menu/upload")
+def upload_menu(files: list[UploadFile] = File(None)):
+    if not files:
+        return {"error": "No files uploaded"}
+
+    os.makedirs("uploaded_menus", exist_ok=True)
+
+    for file in files:
+        file_path = f"uploaded_menus/{file.filename}"
+
+        with open(file_path, "wb") as f:
+            f.write(file.file.read())
+
+    return RedirectResponse(url="/menu", status_code=303)
+
+@app.get("/menu", response_class=HTMLResponse)
+def menu_page():
+    uploaded_files = os.listdir("uploaded_menus") if os.path.exists("uploaded_menus") else []
+
+    files_html = ""
+    for f in uploaded_files:
+        files_html += f'''
+    <li>
+        {f}
+        <a href="/uploaded_menus/{f}" target="_blank">View</a>
+    </li>
+    '''
+
+    html = f"""
+    <html>
+    <body style="font-family:Arial;padding:30px;">
+
+<h1>📋 Menu</h1>
+
+<a href="/dashboard">← Back to Dashboard</a>
+
+<br><br>
+
+<div style="background:white;padding:25px;border-radius:12px;border:1px solid #ddd;max-width:600px;">
+    <h2>Upload Restaurant Menu</h2>
+
+    <form method="post" action="/menu/upload" enctype="multipart/form-data">
+        <input type="file" name="files" accept=".pdf,.jpg,.jpeg,.png" multiple required>
+        <br><br>
+        <button type="submit">Upload Menu</button>
+    </form>
+
+    <p style="color:#555;">Accepted: PDF, JPG, PNG</p>
+
+    <h3>Uploaded Menus</h3>
+<ul>
+    {files_html}
+</ul>
+
+</div>
+
+<br>
+
+<div style="background:white;padding:25px;border-radius:12px;border:1px solid #ddd;max-width:600px;">
+    <h2>Uploaded Menus</h2>
+    <ul>
+        {files_html}
+    </ul>
+</div>
+
+</body>
+</html>
+"""
+
     return html
 
 @app.post("/orders/{order_id}/preparing")
@@ -364,7 +612,7 @@ def mark_order_preparing(order_id: int):
 
     db.close()
 
-    return RedirectResponse(url="/dashboard", status_code=303)
+    return RedirectResponse(url="/orders", status_code=303)
 
 @app.post("/orders/{order_id}/ready")
 def mark_order_ready(order_id: int):
@@ -386,4 +634,26 @@ def mark_order_ready(order_id: int):
 )
     db.close()
 
-    return RedirectResponse(url="/dashboard", status_code=303)
+    return RedirectResponse(url="/orders", status_code=303)
+
+@app.post("/orders/{order_id}/cancel")
+def mark_order_cancelled(order_id: int):
+    db = SessionLocal()
+    order = db.query(OrderDB).filter(OrderDB.id == order_id).first()
+
+    if not order:
+        db.close()
+        return {"error": "Order not found"}
+
+    order.status = "CANCELLED"
+    db.commit()
+    db.refresh(order)
+
+    log_event(
+        "ORDER_CANCELLED",
+        f"Order #{order.id} cancelled"
+    )
+
+    db.close()
+
+    return RedirectResponse(url="/orders", status_code=303)
