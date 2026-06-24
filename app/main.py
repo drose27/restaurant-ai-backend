@@ -535,19 +535,33 @@ def upload_menu(files: list[UploadFile] = File(None)):
 
     return RedirectResponse(url="/menu", status_code=303)
 
+from fastapi.responses import RedirectResponse
+import os
+
+@app.get("/menu/delete/{filename}")
+def delete_menu(filename: str):
+    file_path = os.path.join("uploaded_menus", filename)
+
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+    return RedirectResponse(url="/menu", status_code=303)
+
 @app.get("/menu", response_class=HTMLResponse)
 def menu_page():
     uploaded_files = os.listdir("uploaded_menus") if os.path.exists("uploaded_menus") else []
 
     files_html = ""
     for f in uploaded_files:
-        files_html += f'''
-    <li>
-        {f}
-        <a href="/uploaded_menus/{f}" target="_blank">View</a>
-    </li>
-    '''
-
+        files_html += f"""
+<div style="margin-bottom:10px;">
+    {f}
+    <a href="/uploaded_menus/{f}" target="_blank">View</a>
+    |
+    <a href="/menu/delete/{f}" style="color:red;">Delete</a>
+</div>
+"""
+        
     html = f"""
     <html>
     <body style="font-family:Arial;padding:30px;">
