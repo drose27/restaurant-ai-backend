@@ -96,6 +96,28 @@ class LogDB(Base):
     message = Column(String)
     created_at = Column(String)
 
+class MenuUploadDB(Base):
+    __tablename__ = "menu_uploads"
+
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String)
+    file_path = Column(String)
+    status = Column(String, default="UPLOADED")
+    created_at = Column(String)
+
+
+class MenuItemDB(Base):
+    __tablename__ = "menu_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    category = Column(String)
+    price = Column(Float)
+    description = Column(String, default="")
+    source_file = Column(String)
+    is_available = Column(String, default="YES")
+    created_at = Column(String)
+
 Base.metadata.create_all(bind=engine)
 
 @app.get("/")
@@ -527,16 +549,25 @@ def upload_menu(files: list[UploadFile] = File(None)):
 
     os.makedirs("uploaded_menus", exist_ok=True)
 
+    db = SessionLocal()
     for file in files:
         file_path = f"uploaded_menus/{file.filename}"
 
         with open(file_path, "wb") as f:
             f.write(file.file.read())
 
-    return RedirectResponse(url="/menu", status_code=303)
+        menu_upload = MenuUploadDB(
+            filename=file.filename,
+            file_path=file_path,
+            status="UPLOADED",
+            created_at=str(datetime.now())
+        )
+        db.add(menu_upload)
 
-from fastapi.responses import RedirectResponse
-import os
+    db.commit()
+    db.close()
+
+    return RedirectResponse(url="/menu", status_code=303)
 
 @app.get("/menu/delete/{filename}")
 def delete_menu(filename: str):
