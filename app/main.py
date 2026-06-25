@@ -17,9 +17,8 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY")
-)
+def get_openai_client():
+    return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 engine = create_engine(DATABASE_URL)
 
