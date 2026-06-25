@@ -1,3 +1,4 @@
+from openai import OpenAI
 from importlib.resources import files
 from aiohttp_retry import List
 from fastapi import FastAPI, Form, File, UploadFile
@@ -15,6 +16,10 @@ from datetime import datetime, timedelta
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY")
+)
 
 engine = create_engine(DATABASE_URL)
 
