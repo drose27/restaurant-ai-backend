@@ -1,3 +1,5 @@
+from urllib import response
+
 from openai import OpenAI
 from importlib.resources import files
 from aiohttp_retry import List
@@ -6,6 +8,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse
 from twilio.rest import Client
 import os
+import base64
+import json
+import mimetypes
 from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String, Float
 from sqlalchemy.ext.declarative import declarative_base
@@ -19,6 +24,17 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 def get_openai_client():
     return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def encode_menu_file(file_path: str) -> tuple[str, str]:
+    mime_type, _ = mimetypes.guess_type(file_path)
+
+    if mime_type not in {"image/jpeg", "image/png"}:
+        raise ValueError("For our first test, please use a JPG or PNG menu.")
+
+    with open(file_path, "rb") as menu_file:
+        encoded = base64.b64encode(menu_file.read()).decode("utf-8")
+
+    return mime_type, encoded
 
 engine = create_engine(DATABASE_URL)
 
@@ -554,22 +570,106 @@ def upload_menu(files: list[UploadFile] = File(None)):
     os.makedirs("uploaded_menus", exist_ok=True)
 
     db = SessionLocal()
-    for file in files:
-        file_path = f"uploaded_menus/{file.filename}"
 
-        with open(file_path, "wb") as f:
-            f.write(file.file.read())
+    try:
+        for file in files:
+            file_path = f"uploaded_menus/{file.filename}"
 
-        menu_upload = MenuUploadDB(
-            filename=file.filename,
-            file_path=file_path,
-            status="UPLOADED",
-            created_at=str(datetime.now())
-        )
-        db.add(menu_upload)
+            with open(file_path, "wb") as f:
+                f.write(file.file.read())
 
-    db.commit()
-    db.close()
+            client = get_openai_client()
+            mime_type, image_data = encode_menu_file(file_path)
+
+            response = client.responses.create(
+                model="gpt-4.1-mini",
+                input=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_text",
+                                "text": (
+                                    "Read this restaurant menu. Return only valid JSON "
+                                    "with this structure: "
+                                    '{"items":[{"name":"","category":"","price":0,'
+                                    '"description":""}]}. '
+                                    "Do not invent information. Use null for a missing price."
+                                ),
+                            },
+                            {
+                                "type": "input_image",
+                                "image_url": (
+                                    f"data:{mime_type};base64,{image_data}"
+                                ),
+                            },
+                        ],
+                    }
+                ],
+            )
+
+            extracted_text = response.output_text.strip()
+
+            # Remove ```json and ``` only when OpenAI wraps the response
+            if extracted_text.startswith("```"):
+                lines = extracted_text.splitlines()
+
+                if lines and lines[0].startswith("```"):
+                     lines = lines[1:]
+
+                if lines and lines[-1].strip() == "```":
+                      lines = lines[:-1]
+
+                extracted_text = "\n".join(lines).strip()
+
+            menu_json = json.loads(extracted_text)
+            print(menu_json)
+
+            items = menu_json.get("items", [])
+
+            if not isinstance(items, list):
+                raise ValueError("AI response does not contain a valid items list.")
+
+            # Prevent duplicate items when the same menu file is processed again
+            db.query(MenuItemDB).filter(
+                MenuItemDB.source_file == file.filename
+            ).delete(synchronize_session=False)
+
+            for item in items:
+                name = str(item.get("name") or "").strip()
+
+                # Skip empty or invalid menu items
+                if not name:
+                    continue
+
+                raw_price = item.get("price")
+                price = float(raw_price) if raw_price is not None else None
+
+                menu_item = MenuItemDB(
+                    name=name,
+                    category=str(item.get("category") or "UNCATEGORIZED").strip(),
+                    price=price,
+                    description=str(item.get("description") or "").strip(),
+                    source_file=file.filename,
+                    is_available="YES",
+                    created_at=str(datetime.now()),
+                )
+
+                db.add(menu_item)
+
+            menu_upload = MenuUploadDB(
+                filename=file.filename,
+                file_path=file_path,
+                status="PROCESSED",
+                created_at=str(datetime.now()),
+            )
+
+            db.add(menu_upload)
+
+        db.commit()
+
+    finally:
+        db.close()
 
     return RedirectResponse(url="/menu", status_code=303)
 
@@ -695,3 +795,29 @@ def mark_order_cancelled(order_id: int):
     db.close()
 
     return RedirectResponse(url="/orders", status_code=303)
+
+@app.get("/menu/items")
+def get_menu_items():
+    db = SessionLocal()
+
+    try:
+        items = (
+            db.query(MenuItemDB)
+            .filter(MenuItemDB.is_available == "YES")
+            .order_by(MenuItemDB.category, MenuItemDB.name)
+            .all()
+        )
+
+        return [
+            {
+                "name": item.name,
+                "category": item.category,
+                "price": item.price,
+                "description": item.description,
+                "available": item.is_available == "YES"
+            }
+            for item in items
+        ]
+
+    finally:
+        db.close()
