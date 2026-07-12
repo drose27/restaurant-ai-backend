@@ -821,3 +821,29 @@ def get_menu_items():
 
     finally:
         db.close()
+
+@app.get("/api/orders")
+def get_orders_api():
+    db = SessionLocal()
+
+    try:
+        orders = (
+            db.query(OrderDB)
+            .order_by(OrderDB.id.desc())
+            .all()
+        )
+
+        return [
+            {
+                "id": order.id,
+                "customer_name": order.customer_name,
+                "phone_number": order.phone_number,
+                "items": order.items,
+                "notes": order.notes,
+                "status": order.status,
+                "created_at": str(order.created_at),
+            }
+            for order in orders
+        ]
+    finally:
+        db.close()
